@@ -1,0 +1,305 @@
+/*******************************************************
+Ahmad Asadi 99463107 Final Project
+*******************************************************/
+#include <mega32.h>
+#include <alcd.h>
+#include <delay.h>
+#include <stdlib.h>
+#define ADC_VREF_TYPE ((1<<REFS1) | (1<<REFS0) | (0<<ADLAR))
+
+unsigned int read_adc(unsigned char adc_input){
+    ADMUX=adc_input | ADC_VREF_TYPE;
+    delay_us(10);
+    ADCSRA|=(1<<ADSC);
+    while ((ADCSRA & (1<<ADIF))==0);
+    ADCSRA|=(1<<ADIF);
+    return ADCW;
+}
+
+void T0Delay () {
+    TCNT0 = 128;
+    TCCR0 = 0x05;
+    while ((TIFR&0x1)==0);
+    TCCR0 = 0;
+    TIFR = 0x1;
+}
+
+int pressed1 (int press, int num, int key) {
+    if (press == 0) {
+        num = num * 10;
+        num = num + key;
+    }  
+    return num;
+}
+
+int pressed2 (int press, int num, int key) {
+    if (press == 1) {
+        num = num * 10;
+        num = num + key;
+    } 
+    return num;
+}
+
+int arithmatic (int numb1, int operation2, int numb2) {
+    int result = 0;
+    if (operation2 == 1){
+        result = numb1 / numb2;    
+    } 
+    if (operation2 == 2){ 
+        result = numb1 * numb2;
+    }
+    if (operation2 == 3){
+        result = numb1 - numb2;
+    }
+    if (operation2 == 4){
+        result = numb1 + numb2;
+    } 
+    return result;
+}
+
+char convert (int number) {
+    if (number == 0) { 
+        return '0';
+    }
+    if (number == 1) {
+        return '1';
+    }
+    if (number == 2) {  
+        return '2';
+    }
+    if (number == 3) { 
+        return '3';
+    }
+    if (number == 4) { 
+        return '4';
+    }
+    if (number == 5) {
+        return '5';
+    }
+    if (number == 6) { 
+        return '6';
+    }
+    if (number == 7) {  
+        return '7';
+    }
+    if (number == 8) { 
+        return '8';
+    }
+    if (number == 9) {
+        return '9';
+    } 
+    return '&';
+}
+
+void printlcd (int result) {
+    int digit[5];
+    int i = 0;  
+    int j = 0;
+    char chary= '*';
+    while (result > 0) { 
+        digit[i] = result % 10;  
+        i = i + 1;
+        result = result / 10;
+    } 
+    for(j = i; j > 0; j--) {
+        chary = convert(digit[j - 1]); 
+        lcd_putchar(chary);    
+    }
+}
+
+void main(void){
+    int exp_pressed = 0; 
+    int num1 = 0;
+    int num2 = 0;  
+    int operation = 0; 
+    int res = 0;
+    
+    int round = 0; 
+    int lcdx = 0;  
+    int x = 0;
+    char out[6];
+
+    DDRA = 0b11111110; // pin 0 is input
+    DDRC = 0b11111111; // all output for lcd
+    DDRD = 0b00001111; // first 4 pin is output and other are input 
+
+    PORTA=(0<<PORTA7) | (0<<PORTA6) | (0<<PORTA5) | (0<<PORTA4) | (0<<PORTA3) | (0<<PORTA2) | (0<<PORTA1) | (0<<PORTA0);
+    DDRB=(0<<DDB7) | (0<<DDB6) | (0<<DDB5) | (0<<DDB4) | (0<<DDB3) | (0<<DDB2) | (0<<DDB1) | (0<<DDB0);
+    PORTB=(0<<PORTB7) | (0<<PORTB6) | (0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
+    PORTC=(0<<PORTC7) | (0<<PORTC6) | (0<<PORTC5) | (0<<PORTC4) | (0<<PORTC3) | (0<<PORTC2) | (0<<PORTC1) | (0<<PORTC0);
+    PORTD=(0<<PORTD7) | (0<<PORTD6) | (0<<PORTD5) | (0<<PORTD4) | (0<<PORTD3) | (0<<PORTD2) | (0<<PORTD1) | (0<<PORTD0);
+
+    TCCR0=(0<<WGM00) | (0<<COM01) | (0<<COM00) | (0<<WGM01) | (0<<CS02) | (0<<CS01) | (0<<CS00);
+    TCNT0=0x00;
+    OCR0=0x00;
+
+    TCCR1A=(0<<COM1A1) | (0<<COM1A0) | (0<<COM1B1) | (0<<COM1B0) | (0<<WGM11) | (0<<WGM10);
+    TCCR1B=(0<<ICNC1) | (0<<ICES1) | (0<<WGM13) | (0<<WGM12) | (0<<CS12) | (0<<CS11) | (0<<CS10);
+    TCNT1H=0x00;
+    TCNT1L=0x00;
+    ICR1H=0x00;
+    ICR1L=0x00;
+    OCR1AH=0x00;
+    OCR1AL=0x00;
+    OCR1BH=0x00;
+    OCR1BL=0x00;
+
+    ASSR=0<<AS2;
+    TCCR2=(0<<PWM2) | (0<<COM21) | (0<<COM20) | (0<<CTC2) | (0<<CS22) | (0<<CS21) | (0<<CS20);
+    TCNT2=0x00;
+    OCR2=0x00;
+
+    TIMSK=(0<<OCIE2) | (0<<TOIE2) | (0<<TICIE1) | (0<<OCIE1A) | (0<<OCIE1B) | (0<<TOIE1) | (0<<OCIE0) | (0<<TOIE0);
+
+    MCUCR=(0<<ISC11) | (0<<ISC10) | (0<<ISC01) | (0<<ISC00);
+    MCUCSR=(0<<ISC2);
+
+    UCSRB=(0<<RXCIE) | (0<<TXCIE) | (0<<UDRIE) | (0<<RXEN) | (0<<TXEN) | (0<<UCSZ2) | (0<<RXB8) | (0<<TXB8);
+
+    ACSR=(1<<ACD) | (0<<ACBG) | (0<<ACO) | (0<<ACI) | (0<<ACIE) | (0<<ACIC) | (0<<ACIS1) | (0<<ACIS0);
+
+    ADMUX=ADC_VREF_TYPE;
+    ADCSRA=(1<<ADEN) | (0<<ADSC) | (1<<ADATE) | (0<<ADIF) | (0<<ADIE) | (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+    SFIOR=(0<<ADTS2) | (0<<ADTS1) | (0<<ADTS0);
+
+    SPCR=(0<<SPIE) | (0<<SPE) | (0<<DORD) | (0<<MSTR) | (0<<CPOL) | (0<<CPHA) | (0<<SPR1) | (0<<SPR0);
+
+    TWCR=(0<<TWEA) | (0<<TWSTA) | (0<<TWSTO) | (0<<TWEN) | (0<<TWIE);
+
+    lcd_init(16);
+
+    while (1) {
+        PORTD = 0b00000001;   
+        if (PIND.4==1) { 
+            num1 = pressed1 (exp_pressed, num1, 7);
+            num2 = pressed2 (exp_pressed, num2, 7); 
+            lcd_putchar('7');
+            lcdx = lcdx + 1;
+        } 
+        if (PIND.5==1) {  
+            num1 = pressed1 (exp_pressed, num1, 8);
+            num2 = pressed2 (exp_pressed, num2, 8);
+            lcd_putchar('8'); 
+            lcdx = lcdx + 1;
+        }
+        if (PIND.6==1) {  
+            num1 = pressed1 (exp_pressed, num1, 9);
+            num2 = pressed2 (exp_pressed, num2, 9);
+            lcd_putchar('9');
+            lcdx = lcdx + 1;    
+        }
+        if (PIND.7==1) {   
+            operation = 1; 
+            exp_pressed = 1;
+            lcd_putchar('/');  
+            lcdx = lcdx + 1;  
+        }      
+        //delay_ms(20);    
+        T0Delay();
+        PORTD = 0b00000010;
+        if (PIND.4==1) {  
+            num1 = pressed1 (exp_pressed, num1, 4);
+            num2 = pressed2 (exp_pressed, num2, 4);
+            lcd_putchar('4'); 
+            lcdx = lcdx + 1;   
+        } 
+        if (PIND.5==1) {  
+            num1 = pressed1 (exp_pressed, num1, 5);
+            num2 = pressed2 (exp_pressed, num2, 5);
+            lcd_putchar('5'); 
+            lcdx = lcdx + 1;   
+        }
+        if (PIND.6==1) {  
+            num1 = pressed1 (exp_pressed, num1, 6);
+            num2 = pressed2 (exp_pressed, num2, 6);
+            lcd_putchar('6');
+            lcdx = lcdx + 1;    
+        }
+        if (PIND.7==1) { 
+            operation = 2; 
+            exp_pressed = 1;
+            lcd_putchar('*');
+            lcdx = lcdx + 1;    
+        }
+        PORTD = 0b00000100;  
+        //delay_ms(20);  
+        T0Delay();
+        if (PIND.4==1) { 
+            num1 = pressed1 (exp_pressed, num1, 1);
+            num2 = pressed2 (exp_pressed, num2, 1); 
+            lcd_putchar('1');
+            lcdx = lcdx + 1;    
+        } 
+        if (PIND.5==1) { 
+            num1 = pressed1 (exp_pressed, num1, 2);
+            num2 = pressed2 (exp_pressed, num2, 2); 
+            lcd_putchar('2');
+            lcdx = lcdx + 1;    
+        }
+        if (PIND.6==1) { 
+            num1 = pressed1 (exp_pressed, num1, 3);
+            num2 = pressed2 (exp_pressed, num2, 3); 
+            lcd_putchar('3');
+            lcdx = lcdx + 1;    
+        }
+        if (PIND.7==1) { 
+            operation = 3; 
+            exp_pressed = 1;
+            lcd_putchar('-');
+            lcdx = lcdx + 1;    
+        }
+        PORTD = 0b00001000;  
+        //delay_ms(20);
+        T0Delay();
+        if (PIND.4==1) { 
+            exp_pressed = 0; 
+            num1 = 0;
+            num2 = 0;  
+            operation = 0; 
+            res = 0;
+            lcd_clear();
+            lcdx = 0;
+            x = read_adc(0);
+            x = x/4;
+            itoa(x, out);   
+            out[2] = '.';
+            out[3] = 'C';
+            lcd_gotoxy(0, 1);  
+            lcd_puts(out);
+            lcd_gotoxy(lcdx, 0);
+        } 
+        if (PIND.5==1) {  
+            num1 = pressed1 (exp_pressed, num1, 0);
+            num2 = pressed2 (exp_pressed, num2, 0);
+            lcd_putchar('0');
+            lcdx = lcdx + 1;    
+        }
+        if (PIND.6==1) { 
+            res = arithmatic (num1, operation, num2);
+            lcd_putchar('='); 
+            printlcd(res);
+            lcdx = lcdx + 1;   
+        }
+        if (PIND.7==1) { 
+            operation = 4; 
+            exp_pressed = 1;
+            lcd_putchar('+');  
+            lcdx = lcdx + 1;  
+        }     
+        //delay_ms(20);  
+        T0Delay();
+        round = round + 1;
+        if (round == 10) {
+            round = 0;
+            x = read_adc(0);
+            x = x/4;
+            itoa(x, out);   
+            out[2] = '.';
+            out[3] = 'C';
+            lcd_gotoxy(0, 1);  
+            lcd_puts(out);
+            lcd_gotoxy(lcdx, 0);   
+        }    
+    }
+
+}
